@@ -2358,8 +2358,10 @@ int orderly_poweroff(bool force)
 }
 EXPORT_SYMBOL_GPL(orderly_poweroff);
 
-// BEGIN CS1550 SYSCALLS
 
+/*
+ * cs1550 project 2 syscalls
+ */
 
 DEFINE_SPINLOCK(sem_lock);
 
