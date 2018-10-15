@@ -2403,6 +2403,15 @@ asmlinkage long sys_cs1550_up(struct cs1550_sem *sem) {
     if(sem->value <= 0) {
         struct cs1550_node* current_task = sem->front;
         struct task_struct* task_info;
+
+        if(sem->back == current_task) {
+            sem->front = NULL;
+            sem->back = NULL;
+        }
+        else
+            sem->front = sem->front->next;
+
+        wake_up_process(current_task->task);
     }
 
     spin_unlock(&sem_lock);
