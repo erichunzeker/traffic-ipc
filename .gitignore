@@ -1,3 +1,5 @@
 *.txt
 *.dmg
 *.zip
+qemu/*
+qemu-test/*
