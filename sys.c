@@ -2391,7 +2391,7 @@ asmlinkage long sys_cs1550_down(struct cs1550_sem *sem) {
             sem->back = node;
         }
 		set_current_state(TASK_INTERRUPTIBLE);
-		sem_unlock(&sem_lock);
+		spin_unlock(&sem_lock);
 		schedule();
 	}
 	else
@@ -2404,7 +2404,6 @@ asmlinkage long sys_cs1550_up(struct cs1550_sem *sem) {
     sem->value += 1;
     if(sem->value <= 0) {
         struct cs1550_node* current_task = sem->front;
-        struct task_struct* task_info;
 
         if(sem->back == current_task) {
             sem->front = NULL;
