@@ -1,3 +1,4 @@
+#include "unistd.h"
 
 #define __NR_cs1550_down 326;
 #define __NR_cs1550_up 325;
