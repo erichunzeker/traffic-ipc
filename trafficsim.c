@@ -24,9 +24,37 @@ void up(struct cs1550_sem *sem) {
     syscall(__NR_cs1550_up, sem);
 }
 
-
 int main() {
-    printf("test");
+
+    int north[10];
+    int south[10];
+    int northCount = 0;
+    int southCount = 0;
+    struct cs1550_sem northSem;
+    struct cs1550_sem southSem;
+
+    northSem.value = southSem.value = 0;
+    northSem.front = southSem.front = NULL;
+    northSem.back = southSem.back = NULL;
+
+
+    if(fork() == 0) {
+        while(1) {
+            northCount++;
+
+
+
+        }
+    }
+    if(fork() == 0) {
+        while(1) {}
+    }
+
+
+
+    printf("TRAFFICSIM - eric hunzeker\n");
+
+
     return 0;
 }
 
