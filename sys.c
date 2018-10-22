@@ -2378,21 +2378,21 @@ struct cs1550_sem {
 
 asmlinkage long sys_cs1550_down(struct cs1550_sem *sem) {
 	spin_lock(&sem_lock);
-	sem->value -= 1;
+	sem->value -= 1;					//decrease amount of available spots in queue
 	if(sem->value < 0) {
         struct cs1550_node *node = (struct cs1550_node *)kmalloc(sizeof(struct cs1550_node), GFP_ATOMIC);
         node->task = current;
         node->task = NULL;
 
-        if(sem->front == NULL)
+        if(sem->front == NULL)			//if queue is empty, make this task the first in line
             sem->front = node;
         else {
-            sem->back->next = node;
+            sem->back->next = node;		//add process to end of queue
             sem->back = node;
         }
-		set_current_state(TASK_INTERRUPTIBLE);
+		set_current_state(TASK_INTERRUPTIBLE);	//make process wait
 		spin_unlock(&sem_lock);
-		schedule();
+		schedule();								//do stuff again
 	}
 	else
 		spin_unlock(&sem_lock);
@@ -2401,18 +2401,18 @@ asmlinkage long sys_cs1550_down(struct cs1550_sem *sem) {
 
 asmlinkage long sys_cs1550_up(struct cs1550_sem *sem) {
 	spin_lock(&sem_lock);
-    sem->value += 1;
+    sem->value += 1;							//increase available spots in queue bc current task is leaving
     if(sem->value <= 0) {
-        struct cs1550_node* current_task = sem->front;
+        struct cs1550_node* current_task = sem->front; //reference front of queue
 
-        if(sem->back == current_task) {
+        if(sem->back == current_task) {		//last task in line so set queue to empty
             sem->front = NULL;
             sem->back = NULL;
         }
         else
-            sem->front = sem->front->next;
+            sem->front = sem->front->next; //remove current process from queue
 
-        wake_up_process(current_task->task);
+        wake_up_process(current_task->task); //move process to ready state
     }
 
     spin_unlock(&sem_lock);
