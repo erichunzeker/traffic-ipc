@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 #include <time.h>
 
+
 #define __NR_cs1550_down 326
 #define __NR_cs1550_up 325
 
@@ -14,27 +15,27 @@ struct cs1550_sem {
 };
 
 struct semQueues {
-    int north[10];
-    int south[10];
+    int north[10];      //queue to hold the cars in north direction
+    int south[10];      //queue to hold the cars in south direction
 
-    int northFront;
-    int southFront;
-    int northBack;
-    int southBack;
+    int northFront;     //keeps track of location of front of north queue
+    int southFront;     //keeps track of location of front of south queue
+    int northBack;      //keeps track of back of north queue to add cars to end of queue in north
+    int southBack;      //keeps track of back of south queue to add cars to end of queue in south
 
-    int northCount;
-    int southCount;
+    int northCount;     //keeps track of north's car number
+    int southCount;     //keeps track of south's car number
 
-    struct cs1550_sem northFull;
-    struct cs1550_sem southFull;
+    struct cs1550_sem northFull;    //semaphore who's value is 10 when north queue is full
+    struct cs1550_sem southFull;    //semaphore who's value is 10 when south queue is full
 
-    struct cs1550_sem northEmpty;
-    struct cs1550_sem southEmpty;
+    struct cs1550_sem northEmpty;   //semaphore who's value is 0 when north queue is empty
+    struct cs1550_sem southEmpty;   //semaphore who's value is 0 when south queue is full
 
-    struct cs1550_sem northSem;
-    struct cs1550_sem southSem;
+    struct cs1550_sem northSem;     //semaphore for mutex in north
+    struct cs1550_sem southSem;     //semaphore for mutex in south
 
-    struct cs1550_sem NSFull;
+    struct cs1550_sem NSFull;   //semaphore for both queues being full
 };
 
 void down(struct cs1550_sem *sem) {
@@ -48,78 +49,121 @@ void up(struct cs1550_sem *sem) {
 struct semQueues *mem;
 
 void producerNorth() {
-    int n = 1;
     while (1) {
-        down(&(mem->northEmpty));
-        down(&(mem->northSem));
-        *(mem->north + mem->northBack) = mem->northBack;
-        mem->northBack = (mem->northBack + 1) % 10;
+        if(mem->northCount < 9) {
+            down(&(mem->northEmpty));   //decrement north queue availability
+            down(&(mem->northSem));     //lock resources used by producer north
+            *(mem->north + mem->northBack) = mem->northBack;    //assign
+            mem->northBack = (mem->northBack + 1) % 10;
 
-        //https://stackoverflow.com/questions/5141960/get-the-current-time-in-c
+            //https://stackoverflow.com/questions/5141960/get-the-current-time-in-c
 
-        time_t rawtime;
-        struct tm * timeinfo;
+            time_t rawtime;
+            struct tm * timeinfo;
 
-        time ( &rawtime );
-        timeinfo = localtime ( &rawtime );
+            time ( &rawtime );
+            timeinfo = localtime ( &rawtime );
 
-        printf("Car %d coming from the North direction arrived in the queue at time %s .\n", n++, asctime (timeinfo));
-        mem->northCount++;
-        up(&(mem->northSem));
-        up(&(mem->northFull));
-        up(&(mem->NSFull));
-        if ((rand()) % 10 > 8) {
-            sleep(20);
+            printf("Car %d coming from the North direction arrived in the queue at time %s .\n", mem->northCount, asctime (timeinfo));
+            mem->northCount++;
+            up(&(mem->northSem));
+            up(&(mem->northFull));
+            up(&(mem->NSFull));
+            if ((rand()) % 10 > 8) {
+                sleep(20);
+            }
         }
+        else {
+            while (mem->northCount > 1) {
+                down(&(mem->northFull));
+                down(&(mem->northSem));
+                mem->northFront = (mem->northFront + 1) % 10;
+                time_t rawtime;
+                struct tm * timeinfo;
+                time ( &rawtime );
+                timeinfo = localtime ( &rawtime );
+                printf("Car %d coming from the North direction left the construction zone at time %s .\n", mem->northCount, asctime (timeinfo));
+                mem->northCount--;
+                up(&(mem->northSem));
+                up(&(mem->northEmpty));
+                down(&(mem->NSFull));
+                sleep(2);
+            }        }
     }
 }
 
 void producerSouth() {
-    int n = 1;
     while (1) {
-        down(&(mem->southEmpty));
-        down(&(mem->southSem));
-        *(mem->south + mem->southBack) = mem->southBack;
-        mem->southBack = (mem->southBack + 1) % 10;
+        if (mem->southCount < 9) {
+            down(&(mem->southEmpty));
+            down(&(mem->southSem));
+            *(mem->south + mem->southBack) = mem->southBack;
+            mem->southBack = (mem->southBack + 1) % 10;
 
-        time_t rawtime;
-        struct tm * timeinfo;
+            time_t rawtime;
+            struct tm *timeinfo;
 
-        time ( &rawtime );
-        timeinfo = localtime ( &rawtime );
+            time(&rawtime);
+            timeinfo = localtime(&rawtime);
 
-        printf("Car %d coming from the South direction arrived in the queue at time %s .\n", n++, asctime (timeinfo));
-        mem->southCount++;
-        up(&(mem->southSem));
-        up(&(mem->southFull));
-        up(&(mem->NSFull));
-        if ((rand()) % 10 > 8) {
-            sleep(20);
+            printf("Car %d coming from the South direction arrived in the queue at time %s .\n", mem->southCount,
+                   asctime(timeinfo));
+            mem->southCount++;
+            up(&(mem->southSem));
+            up(&(mem->southFull));
+            up(&(mem->NSFull));
+            if ((rand()) % 10 > 8) {
+                sleep(20);
+            }
         }
+        else{
+            while (mem->southCount > 1) {
+                down(&(mem->southFull));
+                down(&(mem->southSem));
+                mem->southFront = (mem->southFront + 1) % 10;
+
+                time_t rawtime;
+                struct tm * timeinfo;
+
+                time ( &rawtime );
+                timeinfo = localtime ( &rawtime );
+
+                printf("Car %d coming from the South direction left the construction zone at time %s.\n", mem->southCount, asctime (timeinfo));
+                mem->southCount--;
+                up(&(mem->southSem));
+                up(&(mem->southEmpty));
+                down(&(mem->NSFull));
+                sleep(2);
+            }
+        }
+
     }
+
 }
 
 void flagman() {
-    int northCar = 1;
-    int southCar = 1;
     while (1) {
         if ((mem->northCount == 1) && (mem->southCount == 1)) {
             printf("\nThe flagperson is now asleep.\n");
             down(&(mem->NSFull));
+            down(&(mem->northSem));
+            down(&(mem->southSem));
             time_t rawtime;
             struct tm * timeinfo;
             time ( &rawtime );
             timeinfo = localtime ( &rawtime );
             if (mem->northCount > 1) {
-                printf("\nCar %d coming from the North direction, blew their horn at time %s .\n", northCar, asctime (timeinfo));
+                printf("\nCar %d coming from the North direction, blew their horn at time %s .\n", mem->northCount, asctime (timeinfo));
             }
             else if (mem->southCount > 1) {
-                printf("\nCar %d coming from the South direction, blew their horn at time %s .\n", southCar, asctime (timeinfo));
+                printf("\nCar %d coming from the South direction, blew their horn at time %s .\n", mem->southCount, asctime (timeinfo));
             }
+            up(&(mem->southSem));
+            up(&(mem->northSem));
             up(&(mem->NSFull));
         }
 
-        while (mem->northCount > 1 && mem->southCount == 11) {
+        while (mem->northCount > 1) {
             down(&(mem->northFull));
             down(&(mem->northSem));
             mem->northFront = (mem->northFront + 1) % 10;
@@ -127,7 +171,7 @@ void flagman() {
             struct tm * timeinfo;
             time ( &rawtime );
             timeinfo = localtime ( &rawtime );
-            printf("Car %d coming from the North direction left the construction zone at time %s .\n", northCar++, asctime (timeinfo));
+            printf("Car %d coming from the North direction left the construction zone at time %s .\n", mem->northCount, asctime (timeinfo));
             mem->northCount--;
             up(&(mem->northSem));
             up(&(mem->northEmpty));
@@ -135,7 +179,7 @@ void flagman() {
             sleep(2);
         }
 
-        while (mem->southCount > 1 && mem->northCount < 11) {
+        while (mem->southCount > 1) {
             down(&(mem->southFull));
             down(&(mem->southSem));
             mem->southFront = (mem->southFront + 1) % 10;
@@ -146,7 +190,7 @@ void flagman() {
             time ( &rawtime );
             timeinfo = localtime ( &rawtime );
 
-            printf("Car %d coming from the South direction left the construction zone at time %s.\n", southCar++, asctime (timeinfo));
+            printf("Car %d coming from the South direction left the construction zone at time %s.\n", mem->southCount, asctime (timeinfo));
             mem->southCount--;
             up(&(mem->southSem));
             up(&(mem->southEmpty));
@@ -158,8 +202,6 @@ void flagman() {
 
 int main() {
     mem = mmap(NULL, sizeof(struct semQueues), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, 0, 0);
-
-
 
     mem->northCount = 1;
     mem->northBack = 0;
@@ -197,6 +239,5 @@ int main() {
         producerNorth();
     } if (fork() == 0) {
         producerSouth();
-    }
-    wait(NULL);
+    } wait(NULL);
 }
