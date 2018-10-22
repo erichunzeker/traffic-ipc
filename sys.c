@@ -2372,8 +2372,8 @@ struct cs1550_node {
 
 struct cs1550_sem {
 	int value;
-    struct cs1550_node* front;
-    struct cs1550_node* back;
+    struct cs1550_node* front;	//front of queue
+    struct cs1550_node* back;	//back of queue
 };
 
 asmlinkage long sys_cs1550_down(struct cs1550_sem *sem) {
